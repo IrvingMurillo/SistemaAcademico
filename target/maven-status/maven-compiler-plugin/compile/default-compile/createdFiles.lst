@@ -1,3 +1,8 @@
-LoginFrame$1.class
-com\mycompany\sistemaacademico\SistemaAcademico.class
-LoginFrame.class
+com\sistema\modelo\Curso.class
+com\sistema\modelo\Estudiante.class
+com\sistema\vista\LoginFrame.class
+com\sistema\modelo\Asignatura.class
+com\sistema\modelo\Administrador.class
+com\sistema\vista\LoginFrame$1.class
+com\sistema\modelo\Profesor.class
+com\sistema\controlador\ConexionMongoDB.class
