@@ -7,6 +7,8 @@ import com.mongodb.client.model.IndexOptions;
 import com.mongodb.client.model.Indexes;
 import com.sistema.modelo.Rol;
 import com.sistema.modelo.Usuario;
+import java.util.ArrayList;
+import java.util.List;
 import org.bson.Document;
 
 public class UsuarioDAO {
@@ -43,6 +45,20 @@ public class UsuarioDAO {
                 doc.getString("correo"),
                 doc.getString("passwordHash"),
                 Rol.valueOf(doc.getString("rol")));
+    }
+
+    /** Lista los usuarios de un rol (por ejemplo, los profesores para el combo de cursos). */
+    public List<Usuario> listarPorRol(Rol rol) {
+        List<Usuario> lista = new ArrayList<>();
+        for (Document doc : coleccion().find(eq("rol", rol.name()))) {
+            lista.add(new Usuario(
+                    doc.getString("identificador"),
+                    doc.getString("nombreCompleto"),
+                    doc.getString("correo"),
+                    doc.getString("passwordHash"),
+                    rol));
+        }
+        return lista;
     }
 
     public boolean existeIdentificador(String identificador) {

@@ -2,8 +2,8 @@ package com.sistema.vista.registrar;
 
 public class RegistrarAdministradorForm extends RegistrarBaseForm {
 
-    public RegistrarAdministradorForm(Runnable alTerminar) {
-        super("Credencial:", null, alTerminar);
+    public RegistrarAdministradorForm() {
+        super("Credencial:", null);
     }
 
     @Override

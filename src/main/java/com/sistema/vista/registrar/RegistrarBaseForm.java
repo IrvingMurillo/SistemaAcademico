@@ -1,6 +1,8 @@
 package com.sistema.vista.registrar;
 
 import com.sistema.controlador.AutenticacionControlador;
+import com.sistema.vista.LoginForm;
+import com.sistema.vista.Navegador;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridLayout;
@@ -14,7 +16,7 @@ import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 
 /**
- * Parte común de los tres formularios: campos, botones y manejo de errores.
+ * Parte común de los formularios de registro: campos, botones y manejo de errores.
  * Cada formulario solo dice qué etiquetas usa y qué método del controlador llama.
  */
 public abstract class RegistrarBaseForm extends JPanel {
@@ -25,11 +27,8 @@ public abstract class RegistrarBaseForm extends JPanel {
     protected final JPasswordField txtPassword = new JPasswordField(20);
     protected final AutenticacionControlador controlador = new AutenticacionControlador();
 
-    private final Runnable alTerminar;
-
     /** etiquetaExtra va en null si el formulario no tiene ese campo. */
-    protected RegistrarBaseForm(String etiquetaCodigo, String etiquetaExtra, Runnable alTerminar) {
-        this.alTerminar = alTerminar;
+    protected RegistrarBaseForm(String etiquetaCodigo, String etiquetaExtra) {
         setLayout(new BorderLayout());
 
         JPanel campos = new JPanel(new GridLayout(0, 2, 10, 10));
@@ -44,14 +43,14 @@ public abstract class RegistrarBaseForm extends JPanel {
 
         JButton btnCancelar = new JButton("Cancelar");
         JButton btnCrear = new JButton("Crear");
-        btnCancelar.addActionListener(e -> alTerminar.run());
+        btnCancelar.addActionListener(e -> Navegador.irA(new LoginForm()));
         btnCrear.addActionListener(e -> intentarCrear());
 
         JPanel botones = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         botones.add(btnCancelar);
         botones.add(btnCrear);
 
-        add(campos, BorderLayout.CENTER);
+        add(campos, BorderLayout.NORTH);
         add(botones, BorderLayout.SOUTH);
     }
 
@@ -67,7 +66,7 @@ public abstract class RegistrarBaseForm extends JPanel {
             guardar();
             JOptionPane.showMessageDialog(this, "Usuario registrado correctamente.",
                     "Registro exitoso", JOptionPane.INFORMATION_MESSAGE);
-            alTerminar.run();
+            Navegador.irA(new LoginForm());
         } catch (IllegalArgumentException ex) { // datos inválidos o duplicados
             JOptionPane.showMessageDialog(this, ex.getMessage(),
                     "Revise los datos", JOptionPane.WARNING_MESSAGE);

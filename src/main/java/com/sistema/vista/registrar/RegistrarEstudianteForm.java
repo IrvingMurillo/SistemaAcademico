@@ -2,8 +2,8 @@ package com.sistema.vista.registrar;
 
 public class RegistrarEstudianteForm extends RegistrarBaseForm {
 
-    public RegistrarEstudianteForm(Runnable alTerminar) {
-        super("Carnet:", "Carrera:", alTerminar);
+    public RegistrarEstudianteForm() {
+        super("Carnet:", "Carrera:");
     }
 
     @Override

@@ -1,40 +1,46 @@
 package com.sistema.vista.pov;
 
 import com.sistema.modelo.Usuario;
+import com.sistema.vista.BaseForm;
 import com.sistema.vista.LoginForm;
+import com.sistema.vista.Navegador;
 import java.awt.BorderLayout;
-import java.awt.FlowLayout;
+import javax.swing.BorderFactory;
 import javax.swing.JButton;
-import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.SwingConstants;
+import javax.swing.table.DefaultTableModel;
 
-/** Ventana base de cada rol: saludo y cierre de sesión. */
-public abstract class BasePOVForm extends JFrame {
+/**
+ * Ventana base de cada rol: saludo y cierre de sesión abajo.
+ * El centro y la parte de arriba quedan libres para el contenido de cada rol.
+ */
+public abstract class BasePOVForm extends BaseForm {
 
     protected BasePOVForm(Usuario usuario, String titulo) {
         super(titulo);
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
 
         JLabel bienvenida = new JLabel("Bienvenido, " + usuario.getNombreCompleto()
-                + " (" + usuario.getRol() + ")", SwingConstants.CENTER);
+                + " (" + usuario.getRol() + ")");
 
         JButton btnCerrarSesion = new JButton("Cerrar sesión");
-        btnCerrarSesion.addActionListener(e -> cerrarSesion());
+        btnCerrarSesion.addActionListener(e -> Navegador.irA(new LoginForm()));
 
-        JPanel abajo = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        abajo.add(btnCerrarSesion);
+        JPanel abajo = new JPanel(new BorderLayout());
+        abajo.setBorder(BorderFactory.createEmptyBorder(5, 10, 5, 10));
+        abajo.add(bienvenida, BorderLayout.WEST);
+        abajo.add(btnCerrarSesion, BorderLayout.EAST);
 
-        add(bienvenida, BorderLayout.CENTER);
-        add(abajo, BorderLayout.SOUTH);
-
-        setSize(500, 350);
-        setLocationRelativeTo(null);
+        contenido.add(abajo, BorderLayout.SOUTH);
     }
 
-    private void cerrarSesion() {
-        new LoginForm().setVisible(true);
-        dispose();
+    /** Modelo de tabla de solo lectura, compartido por todos los POV. */
+    protected static DefaultTableModel crearModelo(String... columnas) {
+        return new DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int fila, int columna) {
+                return false;
+            }
+        };
     }
 }

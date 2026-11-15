@@ -3,8 +3,12 @@ package com.sistema.vista;
 import com.sistema.controlador.ValidadorDatos;
 import com.sistema.modelo.Asignatura;
 import com.sistema.modelo.Curso;
+import com.sistema.modelo.Rol;
+import com.sistema.modelo.Usuario;
 import com.sistema.persistencia.AsignaturaDAO;
 import com.sistema.persistencia.CursoDAO;
+import com.sistema.persistencia.MatriculaDAO;
+import com.sistema.persistencia.UsuarioDAO;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.GridBagConstraints;
@@ -28,10 +32,12 @@ public class CursoForm extends JFrame {
 
     private final CursoDAO cursoDAO = new CursoDAO();
     private final AsignaturaDAO asignaturaDAO = new AsignaturaDAO();
+    private final UsuarioDAO usuarioDAO = new UsuarioDAO();
+    private final MatriculaDAO matriculaDAO = new MatriculaDAO();
 
     private final JTextField txtNrc = new JTextField(15);
     private final JComboBox<String> cmbAsignatura = new JComboBox<>();
-    private final JTextField txtProfesor = new JTextField(20);
+    private final JComboBox<Usuario> cmbProfesor = new JComboBox<>();
     private final JTextField txtCupos = new JTextField(10);
 
     private final DefaultTableModel modeloTabla = new DefaultTableModel(
@@ -69,7 +75,7 @@ public class CursoForm extends JFrame {
         gbc.gridx = 0; gbc.gridy = 2;
         panelCampos.add(new JLabel("Profesor:"), gbc);
         gbc.gridx = 1;
-        panelCampos.add(txtProfesor, gbc);
+        panelCampos.add(cmbProfesor, gbc);
 
         gbc.gridx = 0; gbc.gridy = 3;
         panelCampos.add(new JLabel("Cupos:"), gbc);
@@ -106,13 +112,14 @@ public class CursoForm extends JFrame {
                 if (fila >= 0) {
                     txtNrc.setText(modeloTabla.getValueAt(fila, 0).toString());
                     cmbAsignatura.setSelectedItem(modeloTabla.getValueAt(fila, 1).toString());
-                    txtProfesor.setText(modeloTabla.getValueAt(fila, 2).toString());
+                    seleccionarProfesor(modeloTabla.getValueAt(fila, 2).toString());
                     txtCupos.setText(modeloTabla.getValueAt(fila, 3).toString());
                 }
             }
         });
 
         cargarAsignaturas();
+        cargarProfesores();
         cargarTabla();
     }
 
@@ -120,6 +127,23 @@ public class CursoForm extends JFrame {
         cmbAsignatura.removeAllItems();
         for (Asignatura a : asignaturaDAO.listarTodas()) {
             cmbAsignatura.addItem(a.getSigla());
+        }
+    }
+
+    private void cargarProfesores() {
+        cmbProfesor.removeAllItems();
+        for (Usuario p : usuarioDAO.listarPorRol(Rol.PROFESOR)) {
+            cmbProfesor.addItem(p);
+        }
+    }
+
+    /** Selecciona en el combo al profesor con ese escalafón (el que muestra la tabla). */
+    private void seleccionarProfesor(String escalafon) {
+        for (int i = 0; i < cmbProfesor.getItemCount(); i++) {
+            if (cmbProfesor.getItemAt(i).getIdentificador().equals(escalafon)) {
+                cmbProfesor.setSelectedIndex(i);
+                return;
+            }
         }
     }
 
@@ -141,11 +165,12 @@ public class CursoForm extends JFrame {
             String nrc = txtNrc.getText().trim().toUpperCase();
             Object seleccionado = cmbAsignatura.getSelectedItem();
             String asignatura = (seleccionado != null) ? seleccionado.toString() : "";
-            String profesor = txtProfesor.getText().trim();
+            Usuario profesorElegido = (Usuario) cmbProfesor.getSelectedItem();
+            String profesor = (profesorElegido != null) ? profesorElegido.getIdentificador() : "";
 
             ValidadorDatos.requerido(nrc, "NRC");
             ValidadorDatos.requerido(asignatura, "Asignatura (registre primero una asignatura)");
-            ValidadorDatos.requerido(profesor, "Profesor");
+            ValidadorDatos.requerido(profesor, "Profesor (registre primero un profesor)");
             int cupos = validarCupos(txtCupos.getText());
 
             Curso c = new Curso(nrc, asignatura, profesor, cupos);
@@ -168,12 +193,18 @@ public class CursoForm extends JFrame {
             String nrc = txtNrc.getText().trim().toUpperCase();
             Object seleccionado = cmbAsignatura.getSelectedItem();
             String asignatura = (seleccionado != null) ? seleccionado.toString() : "";
-            String profesor = txtProfesor.getText().trim();
+            Usuario profesorElegido = (Usuario) cmbProfesor.getSelectedItem();
+            String profesor = (profesorElegido != null) ? profesorElegido.getIdentificador() : "";
 
             ValidadorDatos.requerido(nrc, "NRC");
             ValidadorDatos.requerido(asignatura, "Asignatura");
             ValidadorDatos.requerido(profesor, "Profesor");
             int cupos = validarCupos(txtCupos.getText());
+
+            if (cupos < matriculaDAO.contarActivas(nrc)) {
+                JOptionPane.showMessageDialog(this, "Los cupos no pueden ser menores a los estudiantes ya matriculados en el curso " + nrc, "Integridad", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
             Curso c = new Curso(nrc, asignatura, profesor, cupos);
             if (!cursoDAO.modificar(c)) {
@@ -194,6 +225,11 @@ public class CursoForm extends JFrame {
         try {
             String nrc = txtNrc.getText().trim().toUpperCase();
             ValidadorDatos.requerido(nrc, "NRC");
+
+            if (matriculaDAO.contarActivas(nrc) > 0) {
+                JOptionPane.showMessageDialog(this, "No se puede eliminar: el curso " + nrc + " tiene estudiantes matriculados.", "Integridad", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
 
             int confirm = JOptionPane.showConfirmDialog(this, "¿Seguro que deseas eliminar el curso " + nrc + "?", "Confirmar", JOptionPane.YES_NO_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
@@ -217,7 +253,9 @@ public class CursoForm extends JFrame {
         if (cmbAsignatura.getItemCount() > 0) {
             cmbAsignatura.setSelectedIndex(0);
         }
-        txtProfesor.setText("");
+        if (cmbProfesor.getItemCount() > 0) {
+            cmbProfesor.setSelectedIndex(0);
+        }
         txtCupos.setText("");
         tabla.clearSelection();
     }

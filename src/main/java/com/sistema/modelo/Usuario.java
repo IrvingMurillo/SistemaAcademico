@@ -33,7 +33,7 @@ public class Usuario {
     public void setRol(Rol rol) { this.rol = rol; }
 
     @Override
-    public String toString() { // nunca incluye la contraseña
-        return nombreCompleto + " (" + rol + ")";
+    public String toString() { // nunca incluye la contraseña; los combos muestran "código - nombre"
+        return identificador + " - " + nombreCompleto;
     }
 }

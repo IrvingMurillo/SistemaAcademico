@@ -23,6 +23,6 @@ public class AdministradorPOVForm extends BasePOVForm {
         panelMenu.add(btnAsignaturas);
         panelMenu.add(btnCursos);
 
-        add(panelMenu, BorderLayout.NORTH);
+        contenido.add(panelMenu, BorderLayout.NORTH);
     }
 }
