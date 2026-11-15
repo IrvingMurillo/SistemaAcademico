@@ -1,89 +1,76 @@
 package com.sistema.vista.pov;
 
+import com.sistema.controlador.CursoControlador;
 import com.sistema.controlador.MatriculaControlador;
 import com.sistema.modelo.Curso;
 import com.sistema.modelo.Usuario;
+import com.sistema.vista.Mensajes;
+import com.sistema.vista.TablaConsulta;
 import java.awt.BorderLayout;
 import java.awt.GridLayout;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import javax.swing.BorderFactory;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
-import javax.swing.JTable;
-import javax.swing.table.DefaultTableModel;
 
-/** El profesor ve sus cursos y, al elegir uno, los estudiantes matriculados. */
+/** Panel del profesor: ve sus cursos y, al elegir uno, los estudiantes matriculados. */
 public class ProfesorPOVForm extends BasePOVForm {
-    private final MatriculaControlador controlador = new MatriculaControlador();
+    private final CursoControlador cursoControlador = new CursoControlador();
+    private final MatriculaControlador matriculaControlador = new MatriculaControlador();
     private final String escalafon;
 
-    private final DefaultTableModel modeloCursos =
-            crearModelo("NRC", "Asignatura", "Cupos", "Inscritos");
-    private final DefaultTableModel modeloEstudiantes =
-            crearModelo("Carnet", "Nombre", "Correo");
-    private final JTable tablaCursos = new JTable(modeloCursos);
-    private final JTable tablaEstudiantes = new JTable(modeloEstudiantes);
+    private final TablaConsulta tablaCursos =
+            new TablaConsulta("NRC", "Asignatura", "Cupos", "Inscritos", "Disponibles");
+    private final TablaConsulta tablaEstudiantes =
+            new TablaConsulta("Carnet", "Nombre", "Correo");
 
     public ProfesorPOVForm(Usuario usuario) {
         super(usuario, "Panel del Profesor");
         escalafon = usuario.getIdentificador();
 
-        JPanel panelCursos = new JPanel(new BorderLayout());
-        panelCursos.setBorder(BorderFactory.createTitledBorder("Mis cursos (haga clic en uno)"));
-        panelCursos.add(new JScrollPane(tablaCursos), BorderLayout.CENTER);
-
-        JPanel panelEstudiantes = new JPanel(new BorderLayout());
-        panelEstudiantes.setBorder(BorderFactory.createTitledBorder("Estudiantes matriculados"));
-        panelEstudiantes.add(new JScrollPane(tablaEstudiantes), BorderLayout.CENTER);
+        tablaCursos.setBorder(BorderFactory.createTitledBorder("Mis cursos (haga clic en uno)"));
+        tablaEstudiantes.setBorder(BorderFactory.createTitledBorder("Estudiantes matriculados"));
+        tablaCursos.alSeleccionar(this::cargarEstudiantes);
 
         JPanel centro = new JPanel(new GridLayout(2, 1, 0, 10));
-        centro.add(panelCursos);
-        centro.add(panelEstudiantes);
+        centro.add(tablaCursos);
+        centro.add(tablaEstudiantes);
         contenido.add(centro, BorderLayout.CENTER);
-
-        tablaCursos.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                cargarEstudiantes();
-            }
-        });
 
         cargarCursos();
     }
 
+    /** Lee los cursos del profesor con sus inscritos y cupos disponibles. */
     private void cargarCursos() {
-        modeloCursos.setRowCount(0);
-        modeloEstudiantes.setRowCount(0);
-        for (Curso curso : controlador.listarCursosDe(escalafon)) {
-            modeloCursos.addRow(new Object[]{
-                curso.getNrc(),
-                curso.getAsignatura(),
-                curso.getCupos(),
-                controlador.contarInscritos(curso.getNrc())});
-        }
+        Mensajes.ejecutar(this, () -> {
+            Map<String, String> nombres = matriculaControlador.nombresDeCursos();
+            List<Object[]> filas = new ArrayList<>();
+            for (Curso c : cursoControlador.listarCursosDe(escalafon)) {
+                filas.add(new Object[]{
+                    c.getNrc(),
+                    nombres.getOrDefault(c.getNrc(), c.getAsignatura()),
+                    c.getCupos(),
+                    matriculaControlador.contarInscritos(c.getNrc()),
+                    matriculaControlador.cuposDisponibles(c)});
+            }
+            tablaCursos.cargar(filas);
+            tablaEstudiantes.cargar(new ArrayList<>());
+        });
     }
 
+    /** Lee los estudiantes con matrícula activa en el curso seleccionado. */
     private void cargarEstudiantes() {
-        int fila = tablaCursos.getSelectedRow();
-        if (fila < 0) {
+        String nrc = tablaCursos.valorSeleccionado(0);
+        if (nrc == null) {
             return;
         }
-        String nrc = modeloCursos.getValueAt(fila, 0).toString();
-
-        try {
-            modeloEstudiantes.setRowCount(0);
-            for (Usuario estudiante : controlador.listarEstudiantesDe(nrc)) {
-                modeloEstudiantes.addRow(new Object[]{
-                    estudiante.getIdentificador(),
-                    estudiante.getNombreCompleto(),
-                    estudiante.getCorreo()});
+        Mensajes.ejecutar(this, () -> {
+            List<Object[]> filas = new ArrayList<>();
+            for (Usuario e : matriculaControlador.listarEstudiantesDe(nrc)) {
+                filas.add(new Object[]{e.getIdentificador(), e.getNombreCompleto(), e.getCorreo()});
             }
-        } catch (RuntimeException ex) { // problema con MongoDB
-            JOptionPane.showMessageDialog(this,
-                    "No se pudo leer de la base de datos. Intente de nuevo.",
-                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
-        }
+            tablaEstudiantes.cargar(filas);
+        });
     }
 }

@@ -1,7 +1,6 @@
 package com.sistema;
 
 import com.sistema.persistencia.ConexionMongoDB;
-import com.sistema.persistencia.UsuarioDAO;
 import javax.swing.JOptionPane;
 
 /** Borra TODA la base de datos de pruebas. Pide confirmación antes de hacerlo. */
@@ -25,11 +24,11 @@ public class LimpiarBaseDatos {
         System.out.println("=== INICIANDO LIMPIEZA TOTAL DE LA BASE DE DATOS ===");
         try {
             ConexionMongoDB.getDatabase().drop();
-            new UsuarioDAO().crearIndices(); // el drop también borra los índices únicos
+            ConexionMongoDB.prepararBaseDatos(); // el drop también borra los índices únicos
 
             System.out.println("[+] Base de datos limpiada. No queda ningún usuario.");
             System.out.println("[+] Ejecute ahora CrearRegistros para cargar los datos de prueba.");
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             System.out.println("[-] Error al intentar limpiar la base de datos: " + e.getMessage());
         }
     }

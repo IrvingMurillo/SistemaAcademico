@@ -1,9 +1,11 @@
 package com.sistema.controlador;
 
+import com.sistema.modelo.Asignatura;
 import com.sistema.modelo.Curso;
 import com.sistema.modelo.Matricula;
 import com.sistema.modelo.Rol;
 import com.sistema.modelo.Usuario;
+import com.sistema.persistencia.AsignaturaDAO;
 import com.sistema.persistencia.CursoDAO;
 import com.sistema.persistencia.EstudianteDAO;
 import com.sistema.persistencia.MatriculaDAO;
@@ -16,10 +18,14 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Reglas de matrícula y consultas de los POV de estudiante y profesor. */
+/** Reglas de matrícula y consultas académicas. */
 public class MatriculaControlador {
+    /** Valor del filtro de estado que muestra todas las matrículas. */
+    public static final String TODOS = "TODOS";
+
     private final MatriculaDAO matriculaDAO = new MatriculaDAO();
     private final CursoDAO cursoDAO = new CursoDAO();
+    private final AsignaturaDAO asignaturaDAO = new AsignaturaDAO();
     private final EstudianteDAO estudianteDAO = new EstudianteDAO();
     private final UsuarioDAO usuarioDAO = new UsuarioDAO();
 
@@ -46,6 +52,7 @@ public class MatriculaControlador {
                 LocalDate.now().toString(), Matricula.ACTIVA));
     }
 
+    /** Retira una matrícula activa: cambia su estado, no la borra. */
     public void retirar(String codigo) {
         ValidadorDatos.requerido(codigo, "matrícula");
 
@@ -59,6 +66,7 @@ public class MatriculaControlador {
         matriculaDAO.retirar(codigo);
     }
 
+    /** Estudiantes con matrícula activa en el curso. */
     public int contarInscritos(String nrc) {
         return matriculaDAO.contarActivas(nrc);
     }
@@ -68,22 +76,19 @@ public class MatriculaControlador {
         return curso.getCupos() - contarInscritos(curso.getNrc());
     }
 
-    public List<Curso> listarCursos() {
-        return cursoDAO.listarTodos();
+    /** Matrículas filtradas por estado (ACTIVA, RETIRADA o TODOS). */
+    public List<Matricula> listarMatriculas(String estado) {
+        return filtrarPorEstado(matriculaDAO.listarTodas(), estado);
     }
 
-    public List<Curso> listarCursosDe(String escalafon) {
-        List<Curso> propios = new ArrayList<>();
-        for (Curso curso : cursoDAO.listarTodos()) {
-            if (escalafon.equals(curso.getProfesor())) {
-                propios.add(curso);
-            }
-        }
-        return propios;
-    }
-
+    /** Historial completo de un estudiante, con matrículas activas y retiradas. */
     public List<Matricula> listarMatriculasDe(String carnet) {
         return matriculaDAO.listarPorCarnet(carnet);
+    }
+
+    /** Solo las matrículas vigentes de un estudiante (lo que ve en "Mis cursos"). */
+    public List<Matricula> listarMatriculasActivasDe(String carnet) {
+        return filtrarPorEstado(matriculaDAO.listarPorCarnet(carnet), Matricula.ACTIVA);
     }
 
     /** Estudiantes con matrícula activa en el curso. */
@@ -101,12 +106,38 @@ public class MatriculaControlador {
         return estudiantes;
     }
 
-    /** Escalafón -> nombre, para mostrar el nombre del profesor en las tablas. */
-    public Map<String, String> nombresDeProfesores() {
+    /** NRC -> "sigla - nombre de la asignatura", para mostrar en las tablas. */
+    public Map<String, String> nombresDeCursos() {
+        Map<String, String> asignaturas = new HashMap<>();
+        for (Asignatura asignatura : asignaturaDAO.listarTodas()) {
+            asignaturas.put(asignatura.getSigla(), asignatura.toString());
+        }
         Map<String, String> nombres = new HashMap<>();
-        for (Usuario profesor : usuarioDAO.listarPorRol(Rol.PROFESOR)) {
-            nombres.put(profesor.getIdentificador(), profesor.getNombreCompleto());
+        for (Curso curso : cursoDAO.listarTodos()) {
+            nombres.put(curso.getNrc(), asignaturas.getOrDefault(curso.getAsignatura(), curso.getAsignatura()));
         }
         return nombres;
+    }
+
+    /** Carnet -> nombre del estudiante. */
+    public Map<String, String> nombresDeEstudiantes() {
+        Map<String, String> nombres = new HashMap<>();
+        for (Usuario estudiante : usuarioDAO.listarPorRol(Rol.ESTUDIANTE)) {
+            nombres.put(estudiante.getIdentificador(), estudiante.getNombreCompleto());
+        }
+        return nombres;
+    }
+
+    private List<Matricula> filtrarPorEstado(List<Matricula> matriculas, String estado) {
+        if (estado == null || TODOS.equals(estado)) {
+            return matriculas;
+        }
+        List<Matricula> filtradas = new ArrayList<>();
+        for (Matricula matricula : matriculas) {
+            if (estado.equals(matricula.getEstado())) {
+                filtradas.add(matricula);
+            }
+        }
+        return filtradas;
     }
 }

@@ -1,5 +1,6 @@
 package com.sistema.vista.registrar;
 
+/** Formulario de registro de estudiantes: carnet, nombre, carrera, correo y contraseña. */
 public class RegistrarEstudianteForm extends RegistrarBaseForm {
 
     public RegistrarEstudianteForm() {

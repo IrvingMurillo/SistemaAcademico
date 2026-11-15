@@ -1,136 +1,117 @@
 package com.sistema.vista.pov;
 
+import com.sistema.controlador.CursoControlador;
 import com.sistema.controlador.MatriculaControlador;
 import com.sistema.modelo.Curso;
 import com.sistema.modelo.Matricula;
 import com.sistema.modelo.Usuario;
+import com.sistema.vista.Mensajes;
+import com.sistema.vista.TablaConsulta;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.swing.JButton;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
-import javax.swing.JScrollPane;
 import javax.swing.JTabbedPane;
-import javax.swing.JTable;
-import javax.swing.table.DefaultTableModel;
 
-/** El estudiante ve la oferta de cursos, se matricula y se retira. */
+/** Panel del estudiante: ve la oferta de cursos, se matricula y se retira. */
 public class EstudiantePOVForm extends BasePOVForm {
-    private final MatriculaControlador controlador = new MatriculaControlador();
+    private final CursoControlador cursoControlador = new CursoControlador();
+    private final MatriculaControlador matriculaControlador = new MatriculaControlador();
     private final String carnet;
 
-    private final DefaultTableModel modeloOferta =
-            crearModelo("NRC", "Asignatura", "Profesor", "Cupos disponibles");
-    private final DefaultTableModel modeloMisCursos =
-            crearModelo("Código", "NRC", "Asignatura", "Fecha", "Estado");
-    private final JTable tablaOferta = new JTable(modeloOferta);
-    private final JTable tablaMisCursos = new JTable(modeloMisCursos);
+    private final TablaConsulta tablaOferta =
+            new TablaConsulta("NRC", "Asignatura", "Profesor", "Cupos disponibles", "Matriculado");
+    private final TablaConsulta tablaMisCursos =
+            new TablaConsulta("Código", "NRC", "Asignatura", "Fecha");
 
     public EstudiantePOVForm(Usuario usuario) {
         super(usuario, "Panel del Estudiante");
         carnet = usuario.getIdentificador();
 
-        JButton btnMatricular = new JButton("Matricularme en el curso seleccionado");
-        JButton btnRetirar = new JButton("Retirarme del curso seleccionado");
-        btnMatricular.addActionListener(e -> matricular());
-        btnRetirar.addActionListener(e -> retirar());
-
         JTabbedPane pestanas = new JTabbedPane();
-        pestanas.addTab("Oferta de cursos", crearPanel(tablaOferta, btnMatricular));
-        pestanas.addTab("Mis cursos", crearPanel(tablaMisCursos, btnRetirar));
-        contenido.add(pestanas, BorderLayout.CENTER);
+        pestanas.addTab("Oferta de cursos",
+                crearPanel(tablaOferta, "Matricularme en el curso seleccionado", this::matricular));
+        pestanas.addTab("Mis cursos",
+                crearPanel(tablaMisCursos, "Retirarme del curso seleccionado", this::retirar));
+        pestanas.addChangeListener(e -> actualizar());
 
+        contenido.add(pestanas, BorderLayout.CENTER);
         actualizar();
     }
 
     /** Una tabla con su botón de acción debajo. */
-    private JPanel crearPanel(JTable tabla, JButton boton) {
+    private JPanel crearPanel(TablaConsulta tabla, String textoBoton, Runnable accion) {
+        JButton boton = new JButton(textoBoton);
+        boton.addActionListener(e -> accion.run());
+
         JPanel botones = new JPanel(new FlowLayout());
         botones.add(boton);
 
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(new JScrollPane(tabla), BorderLayout.CENTER);
+        panel.add(tabla, BorderLayout.CENTER);
         panel.add(botones, BorderLayout.SOUTH);
         return panel;
     }
 
-    /** Vuelve a leer de MongoDB las dos tablas. */
+    /** Vuelve a leer de MongoDB las dos tablas. "Mis cursos" muestra solo matrículas activas. */
     private void actualizar() {
-        Map<String, String> profesores = controlador.nombresDeProfesores();
-        Map<String, String> asignaturas = new HashMap<>(); // NRC -> asignatura
+        Mensajes.ejecutar(this, () -> {
+            Map<String, String> cursos = matriculaControlador.nombresDeCursos();
+            Map<String, String> profesores = cursoControlador.nombresDeProfesores();
 
-        modeloOferta.setRowCount(0);
-        for (Curso curso : controlador.listarCursos()) {
-            asignaturas.put(curso.getNrc(), curso.getAsignatura());
-            modeloOferta.addRow(new Object[]{
-                curso.getNrc(),
-                curso.getAsignatura(),
-                profesores.getOrDefault(curso.getProfesor(), curso.getProfesor()),
-                controlador.cuposDisponibles(curso)});
-        }
+            Set<String> matriculados = new HashSet<>(); // NRC de los cursos donde está inscrito
+            List<Object[]> misCursos = new ArrayList<>();
+            for (Matricula m : matriculaControlador.listarMatriculasActivasDe(carnet)) {
+                matriculados.add(m.getNrc());
+                misCursos.add(new Object[]{m.getCodigo(), m.getNrc(),
+                    cursos.getOrDefault(m.getNrc(), ""), m.getFecha()});
+            }
 
-        modeloMisCursos.setRowCount(0);
-        for (Matricula m : controlador.listarMatriculasDe(carnet)) {
-            modeloMisCursos.addRow(new Object[]{
-                m.getCodigo(), m.getNrc(), asignaturas.get(m.getNrc()), m.getFecha(), m.getEstado()});
-        }
+            List<Object[]> oferta = new ArrayList<>();
+            for (Curso c : cursoControlador.listar()) {
+                oferta.add(new Object[]{
+                    c.getNrc(),
+                    cursos.getOrDefault(c.getNrc(), c.getAsignatura()),
+                    profesores.getOrDefault(c.getProfesor(), c.getProfesor()),
+                    matriculaControlador.cuposDisponibles(c),
+                    matriculados.contains(c.getNrc()) ? "Sí" : "No"});
+            }
+
+            tablaOferta.cargar(oferta);
+            tablaMisCursos.cargar(misCursos);
+        });
     }
 
     private void matricular() {
-        int fila = tablaOferta.getSelectedRow();
-        if (fila < 0) {
-            JOptionPane.showMessageDialog(this, "Seleccione un curso de la tabla.",
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
+        String nrc = tablaOferta.valorSeleccionado(0);
+        if (nrc == null) {
+            Mensajes.aviso(this, "Seleccione un curso de la tabla.");
             return;
         }
-        String nrc = modeloOferta.getValueAt(fila, 0).toString();
-
-        try {
-            controlador.matricular(carnet, nrc);
-            JOptionPane.showMessageDialog(this, "Matrícula realizada en el curso " + nrc + ".",
-                    "Matrícula exitosa", JOptionPane.INFORMATION_MESSAGE);
+        if (Mensajes.ejecutar(this, () -> matriculaControlador.matricular(carnet, nrc))) {
+            Mensajes.info(this, "Matrícula realizada en el curso " + nrc + ".");
             actualizar();
-        } catch (IllegalArgumentException ex) { // duplicada, sin cupos, curso inexistente...
-            JOptionPane.showMessageDialog(this, ex.getMessage(),
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
-        } catch (RuntimeException ex) { // problema con MongoDB
-            JOptionPane.showMessageDialog(this,
-                    "No se pudo guardar en la base de datos. Intente de nuevo.",
-                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void retirar() {
-        int fila = tablaMisCursos.getSelectedRow();
-        if (fila < 0) {
-            JOptionPane.showMessageDialog(this, "Seleccione una matrícula de la tabla.",
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
+        String codigo = tablaMisCursos.valorSeleccionado(0);
+        if (codigo == null) {
+            Mensajes.aviso(this, "Seleccione un curso de la tabla.");
             return;
         }
-        String codigo = modeloMisCursos.getValueAt(fila, 0).toString();
-        String nrc = modeloMisCursos.getValueAt(fila, 1).toString();
-
-        int confirmar = JOptionPane.showConfirmDialog(this,
-                "¿Seguro que desea retirarse del curso " + nrc + "?",
-                "Confirmar", JOptionPane.YES_NO_OPTION);
-        if (confirmar != JOptionPane.YES_OPTION) {
+        String nrc = tablaMisCursos.valorSeleccionado(1);
+        if (!Mensajes.confirmar(this, "¿Seguro que desea retirarse del curso " + nrc + "?")) {
             return;
         }
-
-        try {
-            controlador.retirar(codigo);
-            JOptionPane.showMessageDialog(this, "Se retiró del curso " + nrc + ".",
-                    "Retiro exitoso", JOptionPane.INFORMATION_MESSAGE);
+        if (Mensajes.ejecutar(this, () -> matriculaControlador.retirar(codigo))) {
+            Mensajes.info(this, "Se retiró del curso " + nrc + ".");
             actualizar();
-        } catch (IllegalArgumentException ex) { // matrícula inexistente o ya retirada
-            JOptionPane.showMessageDialog(this, ex.getMessage(),
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
-        } catch (RuntimeException ex) { // problema con MongoDB
-            JOptionPane.showMessageDialog(this,
-                    "No se pudo guardar en la base de datos. Intente de nuevo.",
-                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
         }
     }
 }

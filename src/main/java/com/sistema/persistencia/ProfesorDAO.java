@@ -6,6 +6,7 @@ import com.mongodb.client.MongoCollection;
 import com.sistema.modelo.Profesor;
 import org.bson.Document;
 
+/** Acceso a la colección "profesores": datos propios del profesor. */
 public class ProfesorDAO {
 
     private MongoCollection<Document> coleccion() {

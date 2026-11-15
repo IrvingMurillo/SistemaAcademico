@@ -1,5 +1,6 @@
 package com.sistema.vista.registrar;
 
+/** Formulario de registro de profesores: escalafón, nombre, especialización, correo y contraseña. */
 public class RegistrarProfesorForm extends RegistrarBaseForm {
 
     public RegistrarProfesorForm() {

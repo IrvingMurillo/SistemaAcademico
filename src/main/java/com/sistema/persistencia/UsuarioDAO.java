@@ -3,60 +3,40 @@ package com.sistema.persistencia;
 import static com.mongodb.client.model.Filters.eq;
 
 import com.mongodb.client.MongoCollection;
-import com.mongodb.client.model.IndexOptions;
-import com.mongodb.client.model.Indexes;
+import com.mongodb.client.model.Updates;
 import com.sistema.modelo.Rol;
 import com.sistema.modelo.Usuario;
 import java.util.ArrayList;
 import java.util.List;
 import org.bson.Document;
 
+/** Acceso a la colección "usuarios": datos de acceso de todos los roles. */
 public class UsuarioDAO {
 
     private MongoCollection<Document> coleccion() {
         return ConexionMongoDB.getDatabase().getCollection("usuarios");
     }
 
-    /** La base de datos misma rechaza identificadores o correos repetidos. */
-    public void crearIndices() {
-        IndexOptions unico = new IndexOptions().unique(true);
-        coleccion().createIndex(Indexes.ascending("identificador"), unico);
-        coleccion().createIndex(Indexes.ascending("correo"), unico);
-    }
-
+    /** Guarda un usuario nuevo. */
     public void insertar(Usuario usuario) {
-        Document doc = new Document("identificador", usuario.getIdentificador())
+        coleccion().insertOne(new Document("identificador", usuario.getIdentificador())
                 .append("nombreCompleto", usuario.getNombreCompleto())
                 .append("correo", usuario.getCorreo())
                 .append("passwordHash", usuario.getPasswordHash())
-                .append("rol", usuario.getRol().name());
-        coleccion().insertOne(doc);
+                .append("rol", usuario.getRol().name()));
     }
 
-    /** Devuelve el usuario, o null si no existe. */
+    /** Devuelve el usuario con ese correo, o null si no existe. */
     public Usuario buscarPorCorreo(String correo) {
         Document doc = coleccion().find(eq("correo", correo)).first();
-        if (doc == null) {
-            return null;
-        }
-        return new Usuario(
-                doc.getString("identificador"),
-                doc.getString("nombreCompleto"),
-                doc.getString("correo"),
-                doc.getString("passwordHash"),
-                Rol.valueOf(doc.getString("rol")));
+        return (doc == null) ? null : aUsuario(doc);
     }
 
-    /** Lista los usuarios de un rol (por ejemplo, los profesores para el combo de cursos). */
+    /** Lista los usuarios de un rol. */
     public List<Usuario> listarPorRol(Rol rol) {
         List<Usuario> lista = new ArrayList<>();
         for (Document doc : coleccion().find(eq("rol", rol.name()))) {
-            lista.add(new Usuario(
-                    doc.getString("identificador"),
-                    doc.getString("nombreCompleto"),
-                    doc.getString("correo"),
-                    doc.getString("passwordHash"),
-                    rol));
+            lista.add(aUsuario(doc));
         }
         return lista;
     }
@@ -69,7 +49,23 @@ public class UsuarioDAO {
         return coleccion().countDocuments(eq("correo", correo)) > 0;
     }
 
+    /** Actualiza el nombre y el correo de un usuario (no toca contraseña ni rol). */
+    public void actualizarDatos(String identificador, String nombreCompleto, String correo) {
+        coleccion().updateOne(eq("identificador", identificador), Updates.combine(
+                Updates.set("nombreCompleto", nombreCompleto),
+                Updates.set("correo", correo)));
+    }
+
     public void eliminar(String identificador) {
         coleccion().deleteOne(eq("identificador", identificador));
+    }
+
+    private Usuario aUsuario(Document doc) {
+        return new Usuario(
+                doc.getString("identificador"),
+                doc.getString("nombreCompleto"),
+                doc.getString("correo"),
+                doc.getString("passwordHash"),
+                Rol.valueOf(doc.getString("rol")));
     }
 }

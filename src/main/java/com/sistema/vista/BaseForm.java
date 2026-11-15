@@ -8,7 +8,7 @@ import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
-/** Ventana base: tamaño fijo, centrada, sin la barra del sistema y con botones propios. */
+/** Ventana base: centrada, sin la barra del sistema y con botones propios de minimizar y cerrar. */
 public abstract class BaseForm extends JFrame {
     public static final int ANCHO = 600;
     public static final int ALTO = 450;
@@ -16,11 +16,17 @@ public abstract class BaseForm extends JFrame {
     /** Cada ventana agrega aquí sus componentes. */
     protected final JPanel contenido = new JPanel(new BorderLayout());
 
+    /** Ventana con el tamaño estándar (600x450). */
     protected BaseForm(String titulo) {
+        this(titulo, ANCHO, ALTO);
+    }
+
+    /** Ventana con un tamaño propio (la usan los POV, que muestran tablas). */
+    protected BaseForm(String titulo, int ancho, int alto) {
         super(titulo); // el título solo se ve en la barra de tareas
         setUndecorated(true);
         setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setSize(ANCHO, ALTO);
+        setSize(ancho, alto);
         setResizable(false);
         setLocationRelativeTo(null);
         getRootPane().setBorder(BorderFactory.createLineBorder(Color.GRAY));

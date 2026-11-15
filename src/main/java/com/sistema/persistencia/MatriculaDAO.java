@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.bson.Document;
 
+/** Acceso a la colección "matriculas". Las matrículas nunca se borran: se retiran. */
 public class MatriculaDAO {
 
     private MongoCollection<Document> coleccion() {
@@ -27,10 +28,7 @@ public class MatriculaDAO {
     /** Devuelve la matrícula, o null si no existe. */
     public Matricula buscarPorCodigo(String codigo) {
         Document doc = coleccion().find(eq("codigo", codigo)).first();
-        if (doc == null) {
-            return null;
-        }
-        return aMatricula(doc);
+        return (doc == null) ? null : aMatricula(doc);
     }
 
     /** ¿El estudiante ya tiene una matrícula activa en ese curso? */
@@ -41,25 +39,30 @@ public class MatriculaDAO {
 
     /** Cantidad de estudiantes inscritos (matrículas activas) en un curso. */
     public int contarActivas(String nrc) {
-        return (int) coleccion().countDocuments(and(
-                eq("nrc", nrc), eq("estado", Matricula.ACTIVA)));
+        return (int) coleccion().countDocuments(and(eq("nrc", nrc), eq("estado", Matricula.ACTIVA)));
+    }
+
+    /** ¿El curso tiene alguna matrícula, activa o retirada? */
+    public boolean existenDeCurso(String nrc) {
+        return coleccion().countDocuments(eq("nrc", nrc)) > 0;
+    }
+
+    /** ¿El estudiante tiene alguna matrícula, activa o retirada? */
+    public boolean existenDeEstudiante(String carnet) {
+        return coleccion().countDocuments(eq("carnet", carnet)) > 0;
+    }
+
+    public List<Matricula> listarTodas() {
+        return aLista(coleccion().find());
     }
 
     /** Todas las matrículas de un estudiante, activas y retiradas. */
     public List<Matricula> listarPorCarnet(String carnet) {
-        List<Matricula> lista = new ArrayList<>();
-        for (Document doc : coleccion().find(eq("carnet", carnet))) {
-            lista.add(aMatricula(doc));
-        }
-        return lista;
+        return aLista(coleccion().find(eq("carnet", carnet)));
     }
 
     public List<Matricula> listarActivasPorNrc(String nrc) {
-        List<Matricula> lista = new ArrayList<>();
-        for (Document doc : coleccion().find(and(eq("nrc", nrc), eq("estado", Matricula.ACTIVA)))) {
-            lista.add(aMatricula(doc));
-        }
-        return lista;
+        return aLista(coleccion().find(and(eq("nrc", nrc), eq("estado", Matricula.ACTIVA))));
     }
 
     /** Retirarse no borra la matrícula: cambia su estado a RETIRADA. */
@@ -67,8 +70,17 @@ public class MatriculaDAO {
         coleccion().updateOne(eq("codigo", codigo), Updates.set("estado", Matricula.RETIRADA));
     }
 
+    /** Genera el siguiente código de matrícula (MAT-0001, MAT-0002...). */
     public String siguienteCodigo() {
         return String.format("MAT-%04d", coleccion().countDocuments() + 1);
+    }
+
+    private List<Matricula> aLista(Iterable<Document> documentos) {
+        List<Matricula> lista = new ArrayList<>();
+        for (Document doc : documentos) {
+            lista.add(aMatricula(doc));
+        }
+        return lista;
     }
 
     private Matricula aMatricula(Document doc) {

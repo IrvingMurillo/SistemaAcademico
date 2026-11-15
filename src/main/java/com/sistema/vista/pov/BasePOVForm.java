@@ -9,16 +9,17 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
-import javax.swing.table.DefaultTableModel;
 
 /**
  * Ventana base de cada rol: saludo y cierre de sesión abajo.
- * El centro y la parte de arriba quedan libres para el contenido de cada rol.
+ * El centro queda libre para el contenido de cada rol.
  */
 public abstract class BasePOVForm extends BaseForm {
+    private static final int ANCHO_POV = 900;
+    private static final int ALTO_POV = 650;
 
     protected BasePOVForm(Usuario usuario, String titulo) {
-        super(titulo);
+        super(titulo, ANCHO_POV, ALTO_POV);
 
         JLabel bienvenida = new JLabel("Bienvenido, " + usuario.getNombreCompleto()
                 + " (" + usuario.getRol() + ")");
@@ -32,15 +33,5 @@ public abstract class BasePOVForm extends BaseForm {
         abajo.add(btnCerrarSesion, BorderLayout.EAST);
 
         contenido.add(abajo, BorderLayout.SOUTH);
-    }
-
-    /** Modelo de tabla de solo lectura, compartido por todos los POV. */
-    protected static DefaultTableModel crearModelo(String... columnas) {
-        return new DefaultTableModel(columnas, 0) {
-            @Override
-            public boolean isCellEditable(int fila, int columna) {
-                return false;
-            }
-        };
     }
 }

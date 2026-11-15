@@ -10,7 +10,7 @@ import com.sistema.persistencia.EstudianteDAO;
 import com.sistema.persistencia.ProfesorDAO;
 import com.sistema.persistencia.UsuarioDAO;
 
-/** Reglas de negocio del login y del registro. Las ventanas solo llaman a estos métodos. */
+/** Reglas de negocio del login y del registro de usuarios. */
 public class AutenticacionControlador {
     private final UsuarioDAO usuarioDAO = new UsuarioDAO();
     private final EstudianteDAO estudianteDAO = new EstudianteDAO();
@@ -30,59 +30,79 @@ public class AutenticacionControlador {
         return usuario;
     }
 
+    // En los tres registros: primero se valida todo en el orden del formulario,
+    // luego se guarda el usuario y por último sus datos propios.
+
+    /** Registra un estudiante nuevo. */
     public void registrarEstudiante(String carnet, String nombre, String carrera,
                                     String correo, String password) {
-        ValidadorDatos.requerido(carrera, "carrera");
-        Usuario usuario = crearUsuario(carnet, nombre, correo, password, Rol.ESTUDIANTE);
-        guardar(usuario, () -> estudianteDAO.insertar(new Estudiante(usuario.getIdentificador(), carrera.trim())));
-    }
-
-    public void registrarProfesor(String escalafon, String nombre, String especializacion,
-                                  String correo, String password) {
-        ValidadorDatos.requerido(especializacion, "especialización");
-        Usuario usuario = crearUsuario(escalafon, nombre, correo, password, Rol.PROFESOR);
-        guardar(usuario, () -> profesorDAO.insertar(new Profesor(usuario.getIdentificador(), especializacion.trim())));
-    }
-
-    public void registrarAdministrador(String credencial, String nombre,
-                                       String correo, String password) {
-        Usuario usuario = crearUsuario(credencial, nombre, correo, password, Rol.ADMINISTRADOR);
-        guardar(usuario, () -> administradorDAO.insertar(new Administrador(usuario.getIdentificador())));
-    }
-
-    /** Valida los datos comunes y arma el Usuario con la contraseña ya hasheada. */
-    private Usuario crearUsuario(String codigo, String nombre, String correo,
-                                 String password, Rol rol) {
-        ValidadorDatos.requerido(codigo, rol.getNombreCodigo());
+        ValidadorDatos.requerido(carnet, "carnet");
         ValidadorDatos.requerido(nombre, "nombre");
-        ValidadorDatos.requerido(correo, "correo");
+        ValidadorDatos.requerido(carrera, "carrera");
         ValidadorDatos.correo(correo);
-        ValidadorDatos.requerido(password, "contraseña");
         ValidadorDatos.password(password);
 
-        return new Usuario(codigo.trim(), nombre.trim(), correo.trim().toLowerCase(),
-                SeguridadPassword.hashear(password), rol);
+        Usuario usuario = guardarUsuario(carnet, nombre, correo, password, Rol.ESTUDIANTE);
+        try {
+            estudianteDAO.insertar(new Estudiante(usuario.getIdentificador(), carrera.trim()));
+        } catch (RuntimeException e) {
+            usuarioDAO.eliminar(usuario.getIdentificador()); // deshace el paso anterior
+            throw e;
+        }
     }
 
-    /**
-     * Guarda el usuario y luego sus datos propios (guardarDetalle).
-     * Si el segundo guardado falla, borra el usuario para no dejar registros a medias.
-     */
-    private void guardar(Usuario usuario, Runnable guardarDetalle) {
-        if (usuarioDAO.existeIdentificador(usuario.getIdentificador())) {
-            throw new IllegalArgumentException(
-                    "Ya existe un usuario con ese " + usuario.getRol().getNombreCodigo() + ".");
-        }
-        if (usuarioDAO.existeCorreo(usuario.getCorreo())) {
-            throw new IllegalArgumentException("Ese correo ya está registrado.");
-        }
+    /** Registra un profesor nuevo. */
+    public void registrarProfesor(String escalafon, String nombre, String especializacion,
+                                  String correo, String password) {
+        ValidadorDatos.requerido(escalafon, "escalafón");
+        ValidadorDatos.requerido(nombre, "nombre");
+        ValidadorDatos.requerido(especializacion, "especialización");
+        ValidadorDatos.correo(correo);
+        ValidadorDatos.password(password);
 
-        usuarioDAO.insertar(usuario);
+        Usuario usuario = guardarUsuario(escalafon, nombre, correo, password, Rol.PROFESOR);
         try {
-            guardarDetalle.run();
+            profesorDAO.insertar(new Profesor(usuario.getIdentificador(), especializacion.trim()));
         } catch (RuntimeException e) {
             usuarioDAO.eliminar(usuario.getIdentificador());
             throw e;
         }
+    }
+
+    /** Registra un administrador nuevo (se usa desde el script CrearRegistros). */
+    public void registrarAdministrador(String credencial, String nombre,
+                                       String correo, String password) {
+        ValidadorDatos.requerido(credencial, "credencial");
+        ValidadorDatos.requerido(nombre, "nombre");
+        ValidadorDatos.correo(correo);
+        ValidadorDatos.password(password);
+
+        Usuario usuario = guardarUsuario(credencial, nombre, correo, password, Rol.ADMINISTRADOR);
+        try {
+            administradorDAO.insertar(new Administrador(usuario.getIdentificador()));
+        } catch (RuntimeException e) {
+            usuarioDAO.eliminar(usuario.getIdentificador());
+            throw e;
+        }
+    }
+
+    /** Comprueba que no haya duplicados y guarda los datos de acceso (con la contraseña hasheada). */
+    private Usuario guardarUsuario(String codigo, String nombre, String correo,
+                                   String password, Rol rol) {
+        String identificador = codigo.trim();
+        String correoNormalizado = correo.trim().toLowerCase();
+
+        if (usuarioDAO.existeIdentificador(identificador)) {
+            throw new IllegalArgumentException(
+                    "Ya existe un usuario con ese " + rol.getNombreCodigo() + ".");
+        }
+        if (usuarioDAO.existeCorreo(correoNormalizado)) {
+            throw new IllegalArgumentException("Ese correo ya está registrado.");
+        }
+
+        Usuario usuario = new Usuario(identificador, nombre.trim(), correoNormalizado,
+                SeguridadPassword.hashear(password), rol);
+        usuarioDAO.insertar(usuario);
+        return usuario;
     }
 }

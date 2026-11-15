@@ -13,12 +13,12 @@ import java.awt.GridLayout;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 
+/** Pantalla de inicio de sesión: valida las credenciales y abre el POV del rol. */
 public class LoginForm extends BaseForm {
     private final JTextField txtCorreo = new JTextField(20);
     private final JPasswordField txtPassword = new JPasswordField(20);
@@ -56,19 +56,17 @@ public class LoginForm extends BaseForm {
         getRootPane().setDefaultButton(btnIngresar); // Enter = Ingresar
     }
 
+    /** Valida las credenciales y, si son correctas, abre la ventana del rol. */
     private void ingresar() {
         try {
             Usuario usuario = controlador.iniciarSesion(
                     txtCorreo.getText(), new String(txtPassword.getPassword()));
             Navegador.irA(crearPov(usuario));
-        } catch (IllegalArgumentException ex) { // datos inválidos o credenciales incorrectas
+        } catch (IllegalArgumentException ex) { // datos vacíos o credenciales incorrectas
             txtPassword.setText("");
-            JOptionPane.showMessageDialog(this, ex.getMessage(),
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
+            Mensajes.aviso(this, ex.getMessage());
         } catch (RuntimeException ex) { // problema con MongoDB
-            JOptionPane.showMessageDialog(this,
-                    "No se pudo conectar con la base de datos. Intente de nuevo.",
-                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
+            Mensajes.error(this, "No se pudo conectar con la base de datos. Intente de nuevo.");
         }
     }
 

@@ -1,6 +1,6 @@
 package com.sistema;
 
-import com.sistema.persistencia.UsuarioDAO;
+import com.sistema.persistencia.ConexionMongoDB;
 import com.sistema.vista.LoginForm;
 import com.sistema.vista.Navegador;
 import java.awt.Color;
@@ -8,13 +8,14 @@ import javax.swing.JOptionPane;
 import javax.swing.SwingUtilities;
 import javax.swing.UIManager;
 
+/** Punto de entrada: verifica la conexión con MongoDB y abre el login. */
 public class Main {
 
     public static void main(String[] args) {
         UIManager.put("Panel.background", Color.WHITE); // fondo blanco en todas las ventanas
 
         try {
-            new UsuarioDAO().crearIndices(); // además comprueba la conexión
+            ConexionMongoDB.prepararBaseDatos(); // además comprueba la conexión
         } catch (RuntimeException e) {
             JOptionPane.showMessageDialog(null,
                     "No se pudo conectar con MongoDB.\nRevise config.properties y su conexión a internet.",

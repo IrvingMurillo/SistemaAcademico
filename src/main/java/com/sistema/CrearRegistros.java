@@ -1,106 +1,88 @@
 package com.sistema;
 
+import com.sistema.controlador.AsignaturaControlador;
 import com.sistema.controlador.AutenticacionControlador;
-import com.sistema.modelo.Administrador;
-import com.sistema.modelo.Asignatura;
-import com.sistema.modelo.Curso;
-import com.sistema.modelo.Estudiante;
-import com.sistema.modelo.Profesor;
-import com.sistema.persistencia.AdministradorDAO;
-import com.sistema.persistencia.AsignaturaDAO;
-import com.sistema.persistencia.CursoDAO;
-import com.sistema.persistencia.EstudianteDAO;
-import com.sistema.persistencia.ProfesorDAO;
+import com.sistema.controlador.CursoControlador;
+import com.sistema.controlador.MatriculaControlador;
+import com.sistema.persistencia.ConexionMongoDB;
 
+/**
+ * Script de inicialización: carga datos de prueba (administradores, profesores, estudiantes,
+ * asignaturas, cursos y matrículas). Ejecutarlo después de LimpiarBaseDatos.
+ */
 public class CrearRegistros {
+    private static final AutenticacionControlador AUTENTICACION = new AutenticacionControlador();
+    private static final AsignaturaControlador ASIGNATURAS = new AsignaturaControlador();
+    private static final CursoControlador CURSOS = new CursoControlador();
+    private static final MatriculaControlador MATRICULAS = new MatriculaControlador();
 
     public static void main(String[] args) {
-        AutenticacionControlador controlador = new AutenticacionControlador();
-        
-        AdministradorDAO adminDAO = new AdministradorDAO();
-        AsignaturaDAO asignaturaDAO = new AsignaturaDAO();
-        ProfesorDAO profesorDAO = new ProfesorDAO();
-        EstudianteDAO estudianteDAO = new EstudianteDAO();
-        CursoDAO cursoDAO = new CursoDAO();
+        System.out.println("=== INICIANDO CREACIÓN MASIVA DE REGISTROS ===");
+        ConexionMongoDB.prepararBaseDatos();
 
-        System.out.println("=== INICIANDO CREACIÓN MASIVA DE REGISTROS ===\n");
+        crearAdministradores();
+        crearAsignaturas();
+        crearProfesores();
+        crearEstudiantes();
+        crearCursos();
+        crearMatriculas();
 
-        // =========================================================================
-        // 1. CREAR 4 ADMINISTRADORES (Credencial, Nombre, Correo, Contraseña)
-        // =========================================================================
-        System.out.println("--- 1. Registrando Administradores ---");
-        String[][] administradores = {
+        System.out.println("\n=== PROCESO DE CREACIÓN MASIVA FINALIZADO ===");
+    }
+
+    /** Ejecuta una acción e imprime si funcionó o por qué falló. */
+    private static void intentar(String descripcion, Runnable accion) {
+        try {
+            accion.run();
+            System.out.println("[+] " + descripcion);
+        } catch (RuntimeException e) {
+            System.out.println("[-] " + descripcion + ": " + e.getMessage());
+        }
+    }
+
+    private static void crearAdministradores() {
+        System.out.println("\n--- 1. Administradores (credencial, nombre, correo, contraseña) ---");
+        String[][] datos = {
             {"ADM-IRVING", "Irving", "irving@sistema.com", "admin123"},
             {"ADM-ISAIAS", "Isaías", "isaias@sistema.com", "admin123"},
             {"ADM-KEVIN", "Kevin", "kevin@sistema.com", "admin123"},
             {"ADM-WALMER", "Walmer", "walmer@sistema.com", "admin123"}
         };
-
-        for (String[] adminData : administradores) {
-            try {
-                controlador.registrarAdministrador(adminData[0], adminData[1], adminData[2], adminData[3]);
-                if (adminDAO.buscarPorCredencial(adminData[0]) == null) {
-                    adminDAO.insertar(new Administrador(adminData[0]));
-                }
-                System.out.println("[+] Administrador creado: " + adminData[1] + " (" + adminData[0] + ")");
-            } catch (Exception e) {
-                System.out.println("[-] Error con Administrador " + adminData[0] + ": " + e.getMessage());
-            }
+        for (String[] d : datos) {
+            intentar("Administrador " + d[0],
+                    () -> AUTENTICACION.registrarAdministrador(d[0], d[1], d[2], d[3]));
         }
+    }
 
-        // =========================================================================
-        // 2. CREAR 4 ASIGNATURAS (Sigla, Nombre, Validez / Numérico)
-        // =========================================================================
-        System.out.println("\n--- 2. Registrando Asignaturas ---");
-        String[][] asignaturas = {
+    private static void crearAsignaturas() {
+        System.out.println("\n--- 2. Asignaturas (sigla, nombre, validez en U.V.) ---");
+        String[][] datos = {
             {"IS-101", "Programación Orientada a Objetos", "4"},
             {"IS-102", "Estructuras de Datos", "4"},
             {"IS-103", "Bases de Datos NoSQL", "3"},
             {"IS-104", "Ingeniería de Software", "4"}
         };
-
-        for (String[] asig : asignaturas) {
-            try {
-                Asignatura asignatura = new Asignatura(asig[0], asig[1], asig[2]);
-                boolean insertada = asignaturaDAO.insertar(asignatura);
-                if (insertada) {
-                    System.out.println("[+] Asignatura creada: " + asignatura.toString() + " (Validez: " + asig[2] + ")");
-                } else {
-                    System.out.println("[!] La asignatura " + asig[0] + " ya existe.");
-                }
-            } catch (Exception e) {
-                System.out.println("[-] Error con Asignatura " + asig[0] + ": " + e.getMessage());
-            }
+        for (String[] d : datos) {
+            intentar("Asignatura " + d[0], () -> ASIGNATURAS.guardar(d[0], d[1], d[2]));
         }
+    }
 
-        // =========================================================================
-        // 3. CREAR 4 PROFESORES (Escalafón, Nombre, Especialización, Correo, Contraseña)
-        // =========================================================================
-        System.out.println("\n--- 3. Registrando Profesores ---");
-        String[][] profesores = {
+    private static void crearProfesores() {
+        System.out.println("\n--- 3. Profesores (escalafón, nombre, especialización, correo, contraseña) ---");
+        String[][] datos = {
             {"PROF-001", "Ing. Roberto Morales", "Ingeniería de Software", "roberto.morales@sistema.com", "prof123"},
             {"PROF-002", "Dra. Elena Castaneda", "Bases de Datos Avanzadas", "elena.castaneda@sistema.com", "prof123"},
             {"PROF-003", "Msc. Fernando Quintanilla", "Estructuras y Algoritmos", "fernando.quintanilla@sistema.com", "prof123"},
             {"PROF-004", "Licda. Gabriela Solórzano", "Desarrollo Orientado a Objetos", "gabriela.solorzano@sistema.com", "prof123"}
         };
-
-        for (String[] profData : profesores) {
-            try {
-                controlador.registrarProfesor(profData[0], profData[1], profData[2], profData[3], profData[4]);
-                if (profesorDAO.buscarPorEscalafon(profData[0]) == null) {
-                    profesorDAO.insertar(new Profesor(profData[0], profData[2]));
-                }
-                System.out.println("[+] Profesor creado: " + profData[1] + " (Escalafón: " + profData[0] + ")");
-            } catch (Exception e) {
-                System.out.println("[-] Error con Profesor " + profData[0] + ": " + e.getMessage());
-            }
+        for (String[] d : datos) {
+            intentar("Profesor " + d[0], () -> AUTENTICACION.registrarProfesor(d[0], d[1], d[2], d[3], d[4]));
         }
+    }
 
-        // =========================================================================
-        // 4. CREAR 16 ESTUDIANTES (Carnet, Nombre, Carrera, Correo, Contraseña)
-        // =========================================================================
-        System.out.println("\n--- 4. Registrando Estudiantes ---");
-        String[][] estudiantes = {
+    private static void crearEstudiantes() {
+        System.out.println("\n--- 4. Estudiantes (carnet, nombre, carrera, correo, contraseña) ---");
+        String[][] datos = {
             {"EST2026001", "Carlos Alberto Méndez", "Ingeniería en Sistemas", "carlos.mendez@ues.edu.sv", "est123"},
             {"EST2026002", "Sofía Valentina Rivas", "Ingeniería en Sistemas", "sofia.rivas@ues.edu.sv", "est123"},
             {"EST2026003", "Diego Alejandro Torres", "Ingeniería en Sistemas", "diego.torres@ues.edu.sv", "est123"},
@@ -118,44 +100,38 @@ public class CrearRegistros {
             {"EST2026015", "Ricardo Enrique Orellana", "Ingeniería en Sistemas", "ricardo.orellana@ues.edu.sv", "est123"},
             {"EST2026016", "Natalia Beatriz Vásquez", "Ingeniería en Sistemas", "natalia.vasquez@ues.edu.sv", "est123"}
         };
-
-        for (String[] estData : estudiantes) {
-            try {
-                controlador.registrarEstudiante(estData[0], estData[1], estData[2], estData[3], estData[4]);
-                if (estudianteDAO.buscarPorCarnet(estData[0]) == null) {
-                    estudianteDAO.insertar(new Estudiante(estData[0], estData[2]));
-                }
-                System.out.println("[+] Estudiante creado: " + estData[1] + " (Carnet: " + estData[0] + ")");
-            } catch (Exception e) {
-                System.out.println("[-] Error con Estudiante " + estData[0] + ": " + e.getMessage());
-            }
+        for (String[] d : datos) {
+            intentar("Estudiante " + d[0], () -> AUTENTICACION.registrarEstudiante(d[0], d[1], d[2], d[3], d[4]));
         }
+    }
 
-        // =========================================================================
-        // 5. CREAR 4 CURSOS (NRC, Asignatura, Profesor, Cupos) -> Totalmente relacionados
-        // =========================================================================
-        System.out.println("\n--- 5. Registrando Cursos ---");
-        String[][] cursos = {
-            {"101", "IS-101", "PROF-001", "4"},
+    private static void crearCursos() {
+        System.out.println("\n--- 5. Cursos (NRC, sigla de la asignatura, escalafón, cupos) ---");
+        String[][] datos = {
+            {"101", "IS-101", "PROF-001", "5"},
             {"102", "IS-102", "PROF-002", "4"},
             {"103", "IS-103", "PROF-003", "4"},
-            {"104", "IS-104", "PROF-004", "4"}
+            {"104", "IS-104", "PROF-004", "3"},
+            {"105", "IS-101", "PROF-004", "2"}, // otra sección de la misma materia
+            {"106", "IS-102", "PROF-001", "6"}
         };
-
-        for (String[] curData : cursos) {
-            try {
-                Curso curso = new Curso(curData[0], curData[1], curData[2], Integer.parseInt(curData[3]));
-                boolean insertado = cursoDAO.insertar(curso);
-                if (insertado) {
-                    System.out.println("[+] Curso creado - NRC: " + curData[0] + " | Asignatura: " + curData[1] + " | Prof: " + curData[2] + " | Cupos: " + curData[3]);
-                } else {
-                    System.out.println("[!] El curso con NRC " + curData[0] + " ya existe.");
-                }
-            } catch (Exception e) {
-                System.out.println("[-] Error con Curso NRC " + curData[0] + ": " + e.getMessage());
-            }
+        for (String[] d : datos) {
+            intentar("Curso " + d[0], () -> CURSOS.guardar(d[0], d[1], d[2], d[3]));
         }
+    }
 
-        System.out.println("\n=== PROCESO DE CREACIÓN MASIVA FINALIZADO ===");
+    private static void crearMatriculas() {
+        System.out.println("\n--- 6. Matrículas (carnet, NRC) ---");
+        String[][] datos = {
+            {"EST2026001", "101"}, {"EST2026002", "101"}, {"EST2026003", "101"},
+            {"EST2026001", "102"}, {"EST2026004", "102"}, {"EST2026005", "102"}, {"EST2026006", "102"}, // 102 queda lleno
+            {"EST2026002", "103"}, {"EST2026007", "103"}, {"EST2026008", "103"},
+            {"EST2026009", "104"}, {"EST2026010", "104"},
+            {"EST2026011", "105"}, {"EST2026012", "105"}, // 105 queda lleno
+            {"EST2026013", "106"}, {"EST2026014", "106"}, {"EST2026015", "106"}, {"EST2026016", "106"}
+        };
+        for (String[] d : datos) {
+            intentar("Matrícula " + d[0] + " en el curso " + d[1], () -> MATRICULAS.matricular(d[0], d[1]));
+        }
     }
 }

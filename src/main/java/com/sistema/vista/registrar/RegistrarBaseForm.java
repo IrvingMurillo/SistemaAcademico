@@ -2,6 +2,7 @@ package com.sistema.vista.registrar;
 
 import com.sistema.controlador.AutenticacionControlador;
 import com.sistema.vista.LoginForm;
+import com.sistema.vista.Mensajes;
 import com.sistema.vista.Navegador;
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
@@ -10,7 +11,6 @@ import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
-import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
@@ -61,19 +61,11 @@ public abstract class RegistrarBaseForm extends JPanel {
         return new String(txtPassword.getPassword());
     }
 
+    /** Guarda el usuario y, si todo sale bien, vuelve al login. */
     private void intentarCrear() {
-        try {
-            guardar();
-            JOptionPane.showMessageDialog(this, "Usuario registrado correctamente.",
-                    "Registro exitoso", JOptionPane.INFORMATION_MESSAGE);
+        if (Mensajes.ejecutar(this, this::guardar)) {
+            Mensajes.info(this, "Usuario registrado correctamente.");
             Navegador.irA(new LoginForm());
-        } catch (IllegalArgumentException ex) { // datos inválidos o duplicados
-            JOptionPane.showMessageDialog(this, ex.getMessage(),
-                    "Revise los datos", JOptionPane.WARNING_MESSAGE);
-        } catch (RuntimeException ex) { // problema con MongoDB
-            JOptionPane.showMessageDialog(this,
-                    "No se pudo guardar en la base de datos. Intente de nuevo.",
-                    "Error de conexión", JOptionPane.ERROR_MESSAGE);
         }
     }
 
